@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -17,6 +18,9 @@ var (
 
 type model struct {
 	newfile     textinput.Model
+	data        textarea.Model
+	dataLen		int
+	dataEditing bool
 	isEditing   bool
 	currentFile *os.File
 }
@@ -40,9 +44,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "ctrl+n":
 			m.isEditing = true
+			// m.dataEditing= true
+		
 			return m, nil
 		case "enter":
+
 			if m.newfile.Value() != "" {
+
 				loc := filepath.Join(fileHome, m.newfile.Value())
 
 				if _, err := os.Stat(loc); err == nil {
@@ -54,16 +62,34 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					log.Fatal(err)
 				}
 				m.currentFile = f
-				m.isEditing=false
+				m.isEditing = false
+				m.dataEditing=true
 				m.newfile.SetValue("")
+				m.data.Focus()
 				// fmt.Println("file creates at ", loc)
 			}
-			return m, tea.Quit
+			return m, nil
+		case "ctrl+s":
+
+			if m.data.Value()!=""{
+				filedata:=m.data.Value()
+				len,err:=m.currentFile.Write([]byte(filedata))
+				if err!=nil{
+					log.Fatal(err)
+				}
+				m.dataLen=len
+				m.dataEditing=false
+				// m.data.SetValue("")
+			}
+			return m,tea.Quit
 		}
 
 	}
 	if m.isEditing {
 		m.newfile, cmd = m.newfile.Update(msg)
+	}
+	if m.dataEditing{
+		m.data,cmd=m.data.Update(msg)
 	}
 	return m, cmd
 }
@@ -84,6 +110,9 @@ func (m model) View() string {
 	if m.isEditing {
 		view = style.Render(m.newfile.View())
 	}
+	if m.dataEditing{
+		view=m.data.Value()
+		}
 
 	help := "ctrl+c : exit"
 	// style.Render(welcome)
@@ -93,12 +122,13 @@ func (m model) View() string {
 func initailizeModel() model {
 
 	// we will use os package to create a new file at this locaion
-	err := os.MkdirAll(fileHome, 0755); 
+	err := os.MkdirAll(fileHome, 0755)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// we are initailizing new file input
+
+	// we are initailizing new file with name
 
 	ti := textinput.New()
 	ti.Placeholder = "File name"
@@ -107,9 +137,17 @@ func initailizeModel() model {
 	// ti.Width = 20
 	ti.PromptStyle.Blink(true)
 
+	// we are making the data input in the created file
+	tii := textarea.New()
+	tii.Placeholder = "Once upon a time..."
+	tii.Focus()
+
 	return model{
 		newfile:   ti,
 		isEditing: false,
+		data: tii,
+		dataEditing: false,
+		dataLen: 0,
 	}
 }
 
