@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -10,11 +11,14 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type model struct {
-	newfile textinput.Model
-	fileloc string
-	isEditing bool
+var (
+	fileHome = `C:\Users\PANKAJ\OneDrive\Desktop\coding\GO\file`
+)
 
+type model struct {
+	newfile     textinput.Model
+	isEditing   bool
+	currentFile *os.File
 }
 
 func (m model) Init() tea.Cmd {
@@ -35,20 +39,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			fmt.Println("user clicled", msg.String())
 			return m, tea.Quit
 		case "ctrl+n":
-			m.isEditing=true
+			m.isEditing = true
 			return m, nil
 		case "enter":
-			m.isEditing=true
-			loc:=filepath.Join(m.fileloc,m.newfile.Value())
-			os.Create(loc)
-			fmt.Println("file creates at ",loc)
-			return m,tea.Quit
+			if m.newfile.Value() != "" {
+				loc := filepath.Join(fileHome, m.newfile.Value())
+
+				if _, err := os.Stat(loc); err == nil {
+					return m, nil
+				}
+
+				f, err := os.Create(loc)
+				if err != nil {
+					log.Fatal(err)
+				}
+				m.currentFile = f
+				m.isEditing=false
+				m.newfile.SetValue("")
+				// fmt.Println("file creates at ", loc)
+			}
+			return m, tea.Quit
 		}
-		
 
 	}
-	if m.isEditing{
-		m.newfile,cmd = m.newfile.Update(msg)
+	if m.isEditing {
+		m.newfile, cmd = m.newfile.Update(msg)
 	}
 	return m, cmd
 }
@@ -66,8 +81,8 @@ func (m model) View() string {
 	welcome := style.Render("Welcome to TermianlPad")
 
 	view := ""
-	if m.isEditing{
-		view=style.Render(m.newfile.View())
+	if m.isEditing {
+		view = style.Render(m.newfile.View())
 	}
 
 	help := "ctrl+c : exit"
@@ -78,8 +93,10 @@ func (m model) View() string {
 func initailizeModel() model {
 
 	// we will use os package to create a new file at this locaion
-	
-	filPath:=`C:\Users\PANKAJ\OneDrive\Desktop\coding\GO\file\`
+	err := os.MkdirAll(fileHome, 0755); 
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// we are initailizing new file input
 
@@ -91,9 +108,8 @@ func initailizeModel() model {
 	ti.PromptStyle.Blink(true)
 
 	return model{
-		newfile: ti,
+		newfile:   ti,
 		isEditing: false,
-		fileloc: filPath,
 	}
 }
 
