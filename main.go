@@ -148,7 +148,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "ctrl+s":
-
+			
 			if m.currentFile == nil {
 				break
 			}
@@ -182,6 +182,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.data.SetValue("")
 			m.currentFile=nil
 			return m, nil
+
+		case "ctrl+d":
+
+			if m.showingList{
+				item,ok:=m.list.SelectedItem().(item)
+				if ok{
+					
+					fileLoc:=filepath.Join(fileHome,item.title)
+					os.Remove(fileLoc)
+
+					id:=m.list.Index()
+					f:=m.list.Items()
+
+					f = append(f[:id],f[id+1:]...)
+					m.list.SetItems(f)
+
+					// we cant re-inisilise the slice again and again it take more time but can edit the exixitng slice
+					
+					// itemList:=listFile()
+					// m.list.SetItems(itemList)
+				}
+			}
+
+			return m,nil
 		}
 
 	}
