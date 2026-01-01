@@ -14,6 +14,7 @@ import (
 
 var (
 	fileHome = `C:\Users\PANKAJ\OneDrive\Desktop\coding\GO\file`
+	cursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 )
 
 type model struct {
@@ -49,6 +50,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "enter":
 
+			if m.currentFile!=nil{
+				break
+			}
+
+			// file creation
 			if m.newfile.Value() != "" {
 
 				loc := filepath.Join(fileHome, m.newfile.Value())
@@ -63,13 +69,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.currentFile = f
 				m.isEditing = false
-				m.dataEditing=true
+				// m.dataEditing=true
 				m.newfile.SetValue("")
-				m.data.Focus()
+				// m.data.Focus()
 				// fmt.Println("file creates at ", loc)
 			}
 			return m, nil
 		case "ctrl+s":
+
+			if m.currentFile==nil{
+				break
+			}
+			if err:=m.currentFile.Truncate(0); err!=nil{
+				fmt.Println("Can't save the file")
+				return m,nil
+			}
+
+			if _,err:=m.currentFile.Seek(0,0); err!=nil{
+				fmt.Println("can not save the file")
+				return m,nil
+			}
+
 
 			if m.data.Value()!=""{
 				filedata:=m.data.Value()
@@ -81,14 +101,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.dataEditing=false
 				// m.data.SetValue("")
 			}
-			return m,tea.Quit
+
+			if err:=m.currentFile.Close();err!=nil{
+				fmt.Println("can not close the file")
+			}
+
+			m.currentFile=nil
+			m.data.SetValue("")
+			return m,nil
 		}
 
 	}
 	if m.isEditing {
 		m.newfile, cmd = m.newfile.Update(msg)
 	}
-	if m.dataEditing{
+	if m.currentFile!=nil{
 		m.data,cmd=m.data.Update(msg)
 	}
 	return m, cmd
@@ -108,13 +135,13 @@ func (m model) View() string {
 
 	view := ""
 	if m.isEditing {
-		view = style.Render(m.newfile.View())
+		view = m.newfile.View()
 	}
-	if m.dataEditing{
-		view=m.data.Value()
+	if m.currentFile!=nil{
+		view=m.data.View()
 		}
 
-	help := "ctrl+c : exit"
+	help := "ctrl+c : exit ctrl+n : new file ctrl+s : save the file"
 	// style.Render(welcome)
 	return fmt.Sprintf("\n%s\n\n%s\n\n%s", welcome, view, help)
 }
@@ -134,13 +161,21 @@ func initailizeModel() model {
 	ti.Placeholder = "File name"
 	ti.Focus()
 	ti.CharLimit = 156
-	// ti.Width = 20
+	ti.Width = 50
 	ti.PromptStyle.Blink(true)
+	ti.Cursor.Style = cursorStyle
+	ti.PromptStyle = cursorStyle
+	ti.TextStyle = cursorStyle
 
 	// we are making the data input in the created file
+	// text area
 	tii := textarea.New()
-	tii.Placeholder = "Once upon a time..."
+	tii.Placeholder = "Write your note hear"
+	tii.ShowLineNumbers=false
 	tii.Focus()
+	tii.Cursor.Style = cursorStyle
+	tii.FocusedStyle.Prompt = cursorStyle
+	tii.FocusedStyle.CursorLineNumber.Blink(true)
 
 	return model{
 		newfile:   ti,
